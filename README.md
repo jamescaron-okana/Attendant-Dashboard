@@ -1,2 +1,293 @@
-# Attendant-Dashboard.github.io
-Arcade Dashboard
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Attendant Task Dashboard</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #2b2b2b;
+  color: #fff;
+}
+
+/* HEADER */
+header {
+  background: #1f1f1f;
+  padding: 10px 15px;
+  font-size: 16px;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 2px solid #444;
+}
+
+/* TABLE */
+.table-container {
+  padding: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  text-align: left;
+  padding: 10px;
+  background: #333;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #3a3a3a;
+  vertical-align: middle;
+}
+
+tr:hover {
+  background: #3a3a3a;
+}
+
+/* PILLS */
+.pill {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  display: inline-block;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* Category */
+.cat-redemption {
+  background: #6c757d;
+  color: white;
+}
+
+.cat-video {
+  background: #495057;
+  color: white;
+}
+
+.cat-kiosk {
+  background: #343a40;
+  color: white;
+}
+
+/* Priority */
+.prio-low {
+  background: #6ea8fe;
+  color: #000;
+}
+
+.prio-medium {
+  background: #ffd43b;
+  color: #000;
+}
+
+.prio-high {
+  background: #ff6b6b;
+  color: #000;
+}
+
+/* Status */
+.status-todo {
+  background: #adb5bd;
+  color: #000;
+}
+
+.status-progress {
+  background: #74c0fc;
+  color: #000;
+}
+
+.status-done {
+  background: #69db7c;
+  color: #000;
+}
+
+/* EDIT BUTTON */
+#edit {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  background: #f1c40f;
+  padding: 8px 12px;
+  font-weight: bold;
+  color: #000;
+  text-decoration: none;
+  border-radius: 5px;
+  z-index: 10;
+}
+
+#error-message {
+  color: #ff4a4a;
+  font-weight: bold;
+  margin: 10px 0;
+  padding-left: 15px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div>Attendant Task Dashboard</div>
+  <div id="updated">Loading...</div>
+</header>
+
+<div id="error-message"></div>
+
+<div class="table-container">
+<table>
+  <thead>
+    <tr>
+      <th>Task ID</th>
+      <th>Machine</th>
+      <th>Issue Description</th>
+      <th>Category</th>
+      <th>Assigned</th>
+      <th>Priority</th>
+      <th>Status</th>
+      <th>Parts Used</th>
+      <th>Reported By</th>
+      <th>Date Reported</th>
+      <th>Completed Date</th>
+    </tr>
+  </thead>
+
+  <tbody id="body"></tbody>
+</table>
+</div>
+
+<a id="edit"
+   href="https://docs.google.com/spreadsheets/d/e/2PACX-1vSw8cVbdhNKaS0_aYv7MnyjIge-15X21RKBYBPH8LgeX7bav9D-adRVRKNdaqBC6_NNk7qjmDLlCn0S/pubhtml?gid=69095141&single=true"
+   target="_blank">
+   Edit Board
+</a>
+
+<script>
+
+const API_URL =
+"https://script.google.com/macros/s/AKfycbze_lxrJPRUGIt_NzMEPRugpI4I5XwAsyEqaloj3APs8qMG6l4tqx51em40E1L1_X2Wnw/exec?view=attendant";
+
+async function loadData() {
+  try {
+    const response = await fetch(API_URL);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    render(data);
+
+    document.getElementById("updated").innerText =
+      "Updated: " + new Date().toLocaleTimeString();
+
+    document.getElementById("error-message").innerText = "";
+
+  } catch (error) {
+    console.error(error);
+
+    document.getElementById("error-message").innerText =
+      "Error loading data";
+  }
+}
+
+function badge(type, value) {
+
+  if (!value) return "";
+
+  const v = value.toString().toLowerCase();
+
+  if (type === "cat") {
+    if (v.includes("redemption")) {
+      return `<span class="pill cat-redemption">${value}</span>`;
+    }
+
+    if (v.includes("video")) {
+      return `<span class="pill cat-video">${value}</span>`;
+    }
+
+    if (v.includes("kiosk")) {
+      return `<span class="pill cat-kiosk">${value}</span>`;
+    }
+
+    return `<span class="pill">${value}</span>`;
+  }
+
+  if (type === "prio") {
+    if (v === "low") {
+      return `<span class="pill prio-low">Low</span>`;
+    }
+
+    if (v === "medium") {
+      return `<span class="pill prio-medium">Medium</span>`;
+    }
+
+    if (v === "high") {
+      return `<span class="pill prio-high">High</span>`;
+    }
+
+    return `<span class="pill">${value}</span>`;
+  }
+
+  if (type === "status") {
+
+    if (v.includes("to do")) {
+      return `<span class="pill status-todo">${value}</span>`;
+    }
+
+    if (v.includes("progress")) {
+      return `<span class="pill status-progress">${value}</span>`;
+    }
+
+    if (v.includes("done")) {
+      return `<span class="pill status-done">${value}</span>`;
+    }
+
+    return `<span class="pill">${value}</span>`;
+  }
+
+  return value;
+}
+
+function render(data) {
+
+  const body = document.getElementById("body");
+
+  body.innerHTML = "";
+
+  data.forEach(r => {
+
+    body.innerHTML += `
+      <tr>
+        <td>${r["Task ID"] || ""}</td>
+        <td>${r["Machine"] || ""}</td>
+        <td>${r["Issue Description"] || ""}</td>
+        <td>${badge("cat", r["Category"])}</td>
+        <td>${r["Assigned"] || ""}</td>
+        <td>${badge("prio", r["Priority"])}</td>
+        <td>${badge("status", r["Status"])}</td>
+        <td>${r["Parts Used"] || ""}</td>
+        <td>${r["Reported By"] || ""}</td>
+        <td>${r["Date Reported"] || ""}</td>
+        <td>${r["Completed Date"] || ""}</td>
+      </tr>
+    `;
+  });
+}
+
+loadData();
+setInterval(loadData, 10000);
+
+</script>
+
+</body>
+</html>
