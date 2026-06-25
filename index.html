@@ -17,14 +17,33 @@ header {
   background: #1f1f1f;
   padding: 10px 15px;
   font-size: 16px;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
   border-bottom: 2px solid #444;
+}
+
+.header-left {
+  text-align: left;
+}
+
+.header-center {
+  text-align: center;
+  font-weight: bold;
+  font-size: 28px;
+}
+
+.header-right {
+  text-align: right;
+  font-size: 13px;
+  opacity: 0.85;
 }
 
 /* TABLE */
 .table-container {
   padding: 10px;
+  max-height: 90vh;
+  overflow: hidden;
 }
 
 table {
@@ -45,69 +64,57 @@ th {
 td {
   padding: 8px 10px;
   border-bottom: 1px solid #3a3a3a;
-  vertical-align: middle;
 }
 
 tr:hover {
   background: #3a3a3a;
 }
 
-/* PILLS */
+/* PRIORITY */
 .pill {
   padding: 3px 8px;
   border-radius: 12px;
   font-size: 12px;
-  display: inline-block;
   font-weight: bold;
-  white-space: nowrap;
 }
 
-/* Category */
-.cat-redemption {
-  background: #6c757d;
-  color: white;
+.prio-low { background:#6ea8fe; color:#000; }
+.prio-medium { background:#ffd43b; color:#000; }
+.prio-high { background:#ff6b6b; color:#000; }
+
+/* STATUS */
+.status-todo { background:#adb5bd; color:#000; }
+.status-progress { background:#74c0fc; color:#000; }
+.status-done { background:#69db7c; color:#000; }
+
+/* URGENT PULSE */
+@keyframes pulse {
+  0% { background:#ff3b3b33; }
+  50% { background:#ff3b3b99; }
+  100% { background:#ff3b3b33; }
+}
+.urgent {
+  animation: pulse 1.2s infinite;
 }
 
-.cat-video {
-  background: #495057;
-  color: white;
+/* STATUS CHANGE FLASH */
+@keyframes flashFade {
+  0% { background:#ffd43b; }
+  100% { background:transparent; }
+}
+.highlight-change {
+  animation: flashFade 5s ease-out;
 }
 
-.cat-kiosk {
-  background: #343a40;
-  color: white;
+/* NAME COLORS (UPDATED) */
+.assigned-name {
+  color: #4fc3ff; /* sky blue */
+  font-weight: 600;
 }
 
-/* Priority */
-.prio-low {
-  background: #6ea8fe;
-  color: #000;
-}
-
-.prio-medium {
-  background: #ffd43b;
-  color: #000;
-}
-
-.prio-high {
-  background: #ff6b6b;
-  color: #000;
-}
-
-/* Status */
-.status-todo {
-  background: #adb5bd;
-  color: #000;
-}
-
-.status-progress {
-  background: #74c0fc;
-  color: #000;
-}
-
-.status-done {
-  background: #69db7c;
-  color: #000;
+.reported-name {
+  color: #ff3b3b; /* bright red */
+  font-weight: 600;
 }
 
 /* EDIT BUTTON */
@@ -119,16 +126,15 @@ tr:hover {
   padding: 8px 12px;
   font-weight: bold;
   color: #000;
-  text-decoration: none;
   border-radius: 5px;
-  z-index: 10;
 }
 
-#error-message {
-  color: #ff4a4a;
-  font-weight: bold;
-  margin: 10px 0;
-  padding-left: 15px;
+/* KIOSK MODE */
+.kiosk-hidden tr {
+  display: none;
+}
+.kiosk-hidden tr.active {
+  display: table-row;
 }
 </style>
 </head>
@@ -136,153 +142,193 @@ tr:hover {
 <body>
 
 <header>
-  <div>Attendant Task Dashboard</div>
-  <div id="updated">Loading...</div>
+  <div class="header-left">Attendant Task Dashboard</div>
+  <div class="header-center" id="clock">--:--:--</div>
+  <div class="header-right" id="updated">Loading...</div>
 </header>
-
-<div id="error-message"></div>
 
 <div class="table-container">
 <table>
   <thead>
     <tr>
       <th>Task ID</th>
-      <th>Machine</th>
+      <th>Game</th>
       <th>Issue Description</th>
-      <th>Category</th>
       <th>Assigned</th>
       <th>Priority</th>
       <th>Status</th>
-      <th>Parts Used</th>
       <th>Reported By</th>
       <th>Date Reported</th>
-      <th>Completed Date</th>
     </tr>
   </thead>
-
   <tbody id="body"></tbody>
 </table>
 </div>
 
-<a id="edit"
-   href="https://docs.google.com/spreadsheets/d/e/2PACX-1vSw8cVbdhNKaS0_aYv7MnyjIge-15X21RKBYBPH8LgeX7bav9D-adRVRKNdaqBC6_NNk7qjmDLlCn0S/pubhtml?gid=69095141&single=true"
-   target="_blank">
-   Edit Board
+<a id="edit" target="_blank"
+href="https://docs.google.com/spreadsheets/d/e/2PACX-1vSw8cVbdhNKaS0_aYv7MnyjIge-15X21RKBYBPH8LgeX7bav9D-adRVRKNdaqBC6_NNk7qjmDLlCn0S/pubhtml?gid=69095141&single=true">
+Edit Board
 </a>
 
 <script>
 
-const API_URL =
-"https://script.google.com/macros/s/AKfycbze_lxrJPRUGIt_NzMEPRugpI4I5XwAsyEqaloj3APs8qMG6l4tqx51em40E1L1_X2Wnw/exec?view=attendant";
+const API_URL = "https://script.google.com/macros/s/AKfycbze_lxrJPRUGIt_NzMEPRugpI4I5XwAsyEqaloj3APs8qMG6l4tqx51em40E1L1_X2Wnw/exec?view=attendant";
+
+let previousData = {};
+let kioskMode = false;
 
 async function loadData() {
   try {
-    const response = await fetch(API_URL);
+    const res = await fetch(API_URL);
+    const data = await res.json();
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-
+    detectNewTasks(data);
     render(data);
 
     document.getElementById("updated").innerText =
       "Updated: " + new Date().toLocaleTimeString();
 
-    document.getElementById("error-message").innerText = "";
-
-  } catch (error) {
-    console.error(error);
-
-    document.getElementById("error-message").innerText =
-      "Error loading data";
+  } catch (err) {
+    console.error(err);
   }
 }
 
-function badge(type, value) {
+/* CLOCK */
+function updateClock() {
+  const now = new Date();
 
+  const timeParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  }).formatToParts(now);
+
+  const hour = parseInt(timeParts.find(p => p.type === "hour").value, 10);
+  const minute = timeParts.find(p => p.type === "minute").value;
+  const second = timeParts.find(p => p.type === "second").value;
+  const dayPeriod = timeParts.find(p => p.type === "dayPeriod").value;
+
+  document.getElementById("clock").innerText =
+    `${hour}:${minute}:${second} ${dayPeriod}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* DATE FORMAT */
+function formatDate(v) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (isNaN(d)) return v;
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year:"numeric",
+    month:"2-digit",
+    day:"2-digit",
+    hour:"2-digit",
+    minute:"2-digit",
+    second:"2-digit",
+    hour12:true
+  }).format(d);
+}
+
+/* PRIORITY + STATUS BADGES */
+function badge(type, value) {
   if (!value) return "";
 
-  const v = value.toString().toLowerCase();
-
-  if (type === "cat") {
-    if (v.includes("redemption")) {
-      return `<span class="pill cat-redemption">${value}</span>`;
-    }
-
-    if (v.includes("video")) {
-      return `<span class="pill cat-video">${value}</span>`;
-    }
-
-    if (v.includes("kiosk")) {
-      return `<span class="pill cat-kiosk">${value}</span>`;
-    }
-
-    return `<span class="pill">${value}</span>`;
-  }
+  const v = value.toLowerCase();
 
   if (type === "prio") {
-    if (v === "low") {
-      return `<span class="pill prio-low">Low</span>`;
-    }
-
-    if (v === "medium") {
-      return `<span class="pill prio-medium">Medium</span>`;
-    }
-
-    if (v === "high") {
-      return `<span class="pill prio-high">High</span>`;
-    }
-
-    return `<span class="pill">${value}</span>`;
+    if (v === "high") return `<span class="pill prio-high">High</span>`;
+    if (v === "medium") return `<span class="pill prio-medium">Medium</span>`;
+    return `<span class="pill prio-low">${value}</span>`;
   }
 
   if (type === "status") {
-
-    if (v.includes("to do")) {
-      return `<span class="pill status-todo">${value}</span>`;
-    }
-
-    if (v.includes("progress")) {
-      return `<span class="pill status-progress">${value}</span>`;
-    }
-
-    if (v.includes("done")) {
-      return `<span class="pill status-done">${value}</span>`;
-    }
-
+    if (v.includes("todo")) return `<span class="pill status-todo">${value}</span>`;
+    if (v.includes("progress")) return `<span class="pill status-progress">${value}</span>`;
+    if (v.includes("done")) return `<span class="pill status-done">${value}</span>`;
     return `<span class="pill">${value}</span>`;
   }
 
   return value;
 }
 
+/* NEW TASK SOUND */
+function beep() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  osc.frequency.value = 880;
+  osc.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.15);
+}
+
+/* DETECT NEW TASKS */
+function detectNewTasks(data) {
+  data.forEach(r => {
+    const id = r["Task ID"];
+    if (id && !previousData[id]) {
+      beep();
+    }
+  });
+}
+
+/* RENDER */
 function render(data) {
 
   const body = document.getElementById("body");
-
   body.innerHTML = "";
 
   data.forEach(r => {
 
+    const id = r["Task ID"];
+    const old = previousData[id];
+
+    const statusChanged = old && old["Status"] !== r["Status"];
+    const isUrgent = (r["Priority"] || "").toLowerCase() === "high";
+
     body.innerHTML += `
-      <tr>
+      <tr class="
+        ${statusChanged ? "highlight-change" : ""}
+        ${isUrgent ? "urgent" : ""}
+        ${kioskMode ? "active" : ""}
+      ">
         <td>${r["Task ID"] || ""}</td>
-        <td>${r["Machine"] || ""}</td>
+
+        <td>
+          <div>${r["Game"] || ""}</div>
+          <div style="font-size:11px;opacity:0.7">${r["Position"] || ""}</div>
+        </td>
+
         <td>${r["Issue Description"] || ""}</td>
-        <td>${badge("cat", r["Category"])}</td>
-        <td>${r["Assigned"] || ""}</td>
+
+        <td><span class="assigned-name">${r["Assigned"] || ""}</span></td>
+
         <td>${badge("prio", r["Priority"])}</td>
+
         <td>${badge("status", r["Status"])}</td>
-        <td>${r["Parts Used"] || ""}</td>
-        <td>${r["Reported By"] || ""}</td>
-        <td>${r["Date Reported"] || ""}</td>
-        <td>${r["Completed Date"] || ""}</td>
+
+        <td><span class="reported-name">${r["Reported By"] || ""}</span></td>
+
+        <td>${formatDate(r["Date Reported"])}</td>
       </tr>
     `;
   });
+
+  previousData = {};
+  data.forEach(r => previousData[r["Task ID"]] = r);
 }
+
+/* HOTKEY */
+document.addEventListener("keydown", e => {
+  if (e.key === "k") {
+    kioskMode = !kioskMode;
+    loadData();
+  }
+});
 
 loadData();
 setInterval(loadData, 10000);
